@@ -267,7 +267,7 @@ const StudentSidebar = ({ user, setUser }) => {
             ))}
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions 
           {isExpanded && (
             <div className="mt-6 px-3">
               <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-3">
@@ -303,7 +303,7 @@ const StudentSidebar = ({ user, setUser }) => {
                 </button>
               </div>
             </div>
-          )}
+          )}*/}
         </nav>
 
         {/* Logout Button */}
