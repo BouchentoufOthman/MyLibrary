@@ -9,10 +9,21 @@ const eventSchema = mongoose.Schema({
         type: String,
         required: true,
     },
-    guestSpeaker: {
+    guestUser: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'GuestSpeaker',
+        ref: 'User', // Only reference User model with guest role
         required: true,
+    },
+    invitationStatus: {
+        type: String,
+        enum: ['pending', 'accepted', 'declined'],
+        default: 'pending',
+    },
+    invitationSentAt: {
+        type: Date,
+    },
+    invitationRespondedAt: {
+        type: Date,
     },
     date: {
         type: Date,
@@ -20,11 +31,11 @@ const eventSchema = mongoose.Schema({
     },
     startTime: {
         type: String,
-        required: true, // Format: "HH:MM"
+        required: true,
     },
     endTime: {
         type: String,
-        required: true, // Format: "HH:MM"
+        required: true,
     },
     location: {
         type: String,
@@ -50,7 +61,11 @@ const eventSchema = mongoose.Schema({
     },
     category: {
         type: String,
-        required: true, // e.g., "Workshop", "Seminar", "Lecture"
+        required: true,
+    },
+    isVisibleToStudents: {
+        type: Boolean,
+        default: false,
     },
 }, {
     timestamps: true,

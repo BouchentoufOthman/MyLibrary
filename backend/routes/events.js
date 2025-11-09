@@ -1,15 +1,39 @@
 import express from 'express';
 import Event from '../models/Event.js';
-import GuestSpeaker from '../models/GuestSpeaker.js';
+import User from '../models/User.js';
+import jwt from 'jsonwebtoken';
 import { protect, admin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get all events (Public - anyone can view)
+// Get all events (Public - anyone can view, but students see only accepted invitations)
 router.get('/', async (req, res) => {
     try {
-        const events = await Event.find({})
-            .populate('guestSpeaker', 'name email expertise organization')
+        let filter = {};
+        
+        // If not authenticated or student, only show events with accepted invitations
+        const token = req.headers.authorization?.split(' ')[1];
+        let isAdmin = false;
+        
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                const user = await User.findById(decoded.id);
+                if (user && user.role === 'admin') {
+                    isAdmin = true;
+                }
+            } catch (err) {
+                // Token invalid or expired, continue as non-admin
+            }
+        }
+
+        // Students only see events with accepted invitations
+        if (!isAdmin) {
+            filter.isVisibleToStudents = true;
+        }
+
+        const events = await Event.find(filter)
+            .populate('guestUser', 'username email')
             .sort({ date: 1 });
         res.json(events);
     } catch (error) {
@@ -22,7 +46,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const event = await Event.findById(req.params.id)
-            .populate('guestSpeaker')
+            .populate('guestUser', 'username email')
             .populate('attendees', 'username email');
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
@@ -37,32 +61,35 @@ router.get('/:id', async (req, res) => {
 // Create a new event (Admin only)
 router.post('/', protect, admin, async (req, res) => {
     try {
-        const { title, description, guestSpeakerId, date, startTime, endTime, location, maxAttendees, category } = req.body;
+        const { title, description, guestUserId, date, startTime, endTime, location, maxAttendees, category } = req.body;
 
-        if (!title || !description || !guestSpeakerId || !date || !startTime || !endTime || !location || !category) {
+        if (!title || !description || !guestUserId || !date || !startTime || !endTime || !location || !category) {
             return res.status(400).json({ message: 'Please provide all required fields' });
         }
 
-        // Check if guest speaker exists
-        const speaker = await GuestSpeaker.findById(guestSpeakerId);
-        if (!speaker) {
-            return res.status(404).json({ message: 'Guest speaker not found' });
+        // Check if guest user exists and has guest role
+        const guestUser = await User.findById(guestUserId);
+        if (!guestUser || guestUser.role !== 'guest') {
+            return res.status(404).json({ message: 'Guest user not found or invalid role' });
         }
 
         const event = await Event.create({
             title,
             description,
-            guestSpeaker: guestSpeakerId,
+            guestUser: guestUserId,
             date: new Date(date),
             startTime,
             endTime,
             location,
             maxAttendees: maxAttendees || 50,
             category,
+            invitationStatus: 'pending',
+            invitationSentAt: new Date(),
+            isVisibleToStudents: false,
         });
 
         const populatedEvent = await Event.findById(event._id)
-            .populate('guestSpeaker', 'name email expertise organization');
+            .populate('guestUser', 'username email');
 
         res.status(201).json(populatedEvent);
     } catch (error) {
@@ -74,20 +101,24 @@ router.post('/', protect, admin, async (req, res) => {
 // Update an event (Admin only)
 router.put('/:id', protect, admin, async (req, res) => {
     try {
-        const { title, description, guestSpeakerId, date, startTime, endTime, location, maxAttendees, status, category } = req.body;
+        const { title, description, guestUserId, date, startTime, endTime, location, maxAttendees, status, category } = req.body;
 
         const event = await Event.findById(req.params.id);
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
         }
 
-        // If changing guest speaker, verify it exists
-        if (guestSpeakerId && guestSpeakerId !== event.guestSpeaker.toString()) {
-            const speaker = await GuestSpeaker.findById(guestSpeakerId);
-            if (!speaker) {
-                return res.status(404).json({ message: 'Guest speaker not found' });
+        // If changing guest user, verify it exists and has guest role
+        if (guestUserId && guestUserId !== event.guestUser.toString()) {
+            const guestUser = await User.findById(guestUserId);
+            if (!guestUser || guestUser.role !== 'guest') {
+                return res.status(404).json({ message: 'Guest user not found or invalid role' });
             }
-            event.guestSpeaker = guestSpeakerId;
+            event.guestUser = guestUserId;
+            // Reset invitation status when changing guest
+            event.invitationStatus = 'pending';
+            event.invitationSentAt = new Date();
+            event.isVisibleToStudents = false;
         }
 
         event.title = title || event.title;
@@ -102,7 +133,7 @@ router.put('/:id', protect, admin, async (req, res) => {
 
         const updatedEvent = await event.save();
         const populatedEvent = await Event.findById(updatedEvent._id)
-            .populate('guestSpeaker', 'name email expertise organization');
+            .populate('guestUser', 'username email');
 
         res.json(populatedEvent);
     } catch (error) {
@@ -123,6 +154,70 @@ router.delete('/:id', protect, admin, async (req, res) => {
         res.json({ message: 'Event deleted successfully' });
     } catch (error) {
         console.error('Error deleting event:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Get invitations for logged-in guest
+router.get('/my/invitations', protect, async (req, res) => {
+    try {
+        if (req.user.role !== 'guest') {
+            return res.status(403).json({ message: 'Access denied. Guest only.' });
+        }
+
+        const invitations = await Event.find({ 
+            guestUser: req.user._id 
+        })
+            .populate('guestUser', 'username email')
+            .sort({ invitationSentAt: -1 });
+
+        res.json(invitations);
+    } catch (error) {
+        console.error('Error fetching invitations:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Respond to invitation (Guest only)
+router.put('/:id/respond-invitation', protect, async (req, res) => {
+    try {
+        const { response } = req.body; // 'accepted' or 'declined'
+
+        if (req.user.role !== 'guest') {
+            return res.status(403).json({ message: 'Access denied. Guest only.' });
+        }
+
+        if (!['accepted', 'declined'].includes(response)) {
+            return res.status(400).json({ message: 'Invalid response. Must be "accepted" or "declined"' });
+        }
+
+        const event = await Event.findById(req.params.id);
+        if (!event) {
+            return res.status(404).json({ message: 'Event not found' });
+        }
+
+        // Check if this guest is invited to this event
+        if (!event.guestUser || event.guestUser.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ message: 'You are not invited to this event' });
+        }
+
+        // Update invitation status
+        event.invitationStatus = response;
+        event.invitationRespondedAt = new Date();
+        
+        // Make visible to students only if accepted
+        if (response === 'accepted') {
+            event.isVisibleToStudents = true;
+        }
+
+        await event.save();
+
+        const populatedEvent = await Event.findById(event._id)
+            .populate('guestUser', 'username email');
+
+        res.json(populatedEvent);
+    } catch (error) {
+        console.error('Error responding to invitation:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -154,7 +249,7 @@ router.post('/:id/register', protect, async (req, res) => {
         await event.save();
 
         const populatedEvent = await Event.findById(event._id)
-            .populate('guestSpeaker', 'name email expertise organization');
+            .populate('guestUser', 'username email');
 
         res.json(populatedEvent);
     } catch (error) {
@@ -187,7 +282,7 @@ router.post('/:id/unregister', protect, async (req, res) => {
         await event.save();
 
         const populatedEvent = await Event.findById(event._id)
-            .populate('guestSpeaker', 'name email expertise organization');
+            .populate('guestUser', 'username email');
 
         res.json(populatedEvent);
     } catch (error) {
@@ -200,7 +295,7 @@ router.post('/:id/unregister', protect, async (req, res) => {
 router.get('/my/registered', protect, async (req, res) => {
     try {
         const events = await Event.find({ attendees: req.user._id })
-            .populate('guestSpeaker', 'name email expertise organization')
+            .populate('guestUser', 'username email')
             .sort({ date: 1 });
         res.json(events);
     } catch (error) {

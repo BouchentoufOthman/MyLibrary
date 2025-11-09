@@ -15,6 +15,7 @@ import ReservationManagement from "./pages/ReservationManagement";
 import StudyRoomReservationManagement from "./pages/StudyRoomReservationManagement";
 import GuestSpeakerManagement from "./pages/GuestSpeakerManagement";
 import EventManagement from "./pages/EventManagement";
+import GuestDashboard from "./pages/GuestDashboard";
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
@@ -67,34 +68,38 @@ function App() {
         {/* Main Content */}
         <div className="flex-1">
           <Routes>
-            <Route 
-              path="/" 
-              element={
-                user ? (
-                  user.role === 'admin' ? (
-                    <Navigate to="/admin/dashboard" replace />
-                  ) : (
-                    <Navigate to="/student/dashboard" replace />
-                  )
-                ) : (
-                  <Home user={user} />
-                )
-              } 
-            />
-            <Route 
-              path="/login" 
-              element={
-                user ? (
-                  user.role === 'admin' ? (
-                    <Navigate to="/admin/dashboard" replace />
-                  ) : (
-                    <Navigate to="/student/dashboard" replace />
-                  )
-                ) : (
-                  <Login setUser={setUser} />
-                )
-              } 
-            />
+<Route 
+  path="/" 
+  element={
+    user ? (
+      user.role === 'admin' ? (
+        <Navigate to="/admin/dashboard" replace />
+      ) : user.role === 'guest' ? (
+        <Navigate to="/guest/dashboard" replace />
+      ) : (
+        <Navigate to="/student/dashboard" replace />
+      )
+    ) : (
+      <Home user={user} />
+    )
+  } 
+/>
+<Route 
+  path="/login" 
+  element={
+    user ? (
+      user.role === 'admin' ? (
+        <Navigate to="/admin/dashboard" replace />
+      ) : user.role === 'guest' ? (
+        <Navigate to="/guest/dashboard" replace />
+      ) : (
+        <Navigate to="/student/dashboard" replace />
+      )
+    ) : (
+      <Login setUser={setUser} />
+    )
+  } 
+/>
             <Route 
               path="/register" 
               element={
@@ -168,16 +173,6 @@ function App() {
               } 
             />
             <Route 
-              path="/admin/guest-speakers" 
-              element={
-                user && user.role === 'admin' ? (
-                  <GuestSpeakerManagement />
-                ) : (
-                  <Navigate to="/login" replace />
-                )
-              } 
-            />
-            <Route 
               path="/admin/events" 
               element={
                 user && user.role === 'admin' ? (
@@ -199,7 +194,20 @@ function App() {
                 )
               } 
             />
+            {/* Guest Routes */}
+            <Route 
+                path="/guest/dashboard" 
+              element={
+                user && user.role === 'guest' ? (
+                  <GuestDashboard user={user} setUser={setUser} />
+                ) : (
+                  <Navigate to="/login" replace />
+                )
+              } 
+            />
+            
           </Routes>
+
         </div>
       </div>
     </Router>

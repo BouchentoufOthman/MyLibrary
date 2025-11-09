@@ -3,13 +3,13 @@ import axios from 'axios';
 
 const EventManagement = () => {
   const [events, setEvents] = useState([]);
-  const [speakers, setSpeakers] = useState([]);
+  const [guestUsers, setGuestUsers] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    guestSpeakerId: '',
+    guestUserId: '',
     date: '',
     startTime: '',
     endTime: '',
@@ -23,24 +23,36 @@ const EventManagement = () => {
 
   useEffect(() => {
     fetchEvents();
-    fetchSpeakers();
+    fetchGuestUsers();
   }, []);
 
   const fetchEvents = async () => {
     try {
-      const response = await axios.get('/api/events');
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+      const response = await axios.get('/api/events', config);
       setEvents(response.data);
     } catch (err) {
       setError('Failed to fetch events');
     }
   };
 
-  const fetchSpeakers = async () => {
+  const fetchGuestUsers = async () => {
     try {
-      const response = await axios.get('/api/guest-speakers');
-      setSpeakers(response.data.filter(speaker => speaker.isAvailable));
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+      const response = await axios.get('/api/users/guests', config);
+      setGuestUsers(response.data);
     } catch (err) {
-      console.error('Failed to fetch speakers');
+      console.error('Failed to fetch guest users');
     }
   };
 
@@ -63,16 +75,16 @@ const EventManagement = () => {
 
       if (editingEvent) {
         await axios.put(`/api/events/${editingEvent._id}`, formData, config);
-        setSuccess('Event updated successfully!');
+        setSuccess('Event updated successfully! Invitation sent to guest.');
       } else {
         await axios.post('/api/events', formData, config);
-        setSuccess('Event created successfully!');
+        setSuccess('Event created successfully! Invitation sent to guest.');
       }
 
       setFormData({
         title: '',
         description: '',
-        guestSpeakerId: '',
+        guestUserId: '',
         date: '',
         startTime: '',
         endTime: '',
@@ -84,8 +96,11 @@ const EventManagement = () => {
       setShowForm(false);
       setEditingEvent(null);
       fetchEvents();
+      
+      setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
       setError(err.response?.data?.message || 'Operation failed');
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -94,7 +109,7 @@ const EventManagement = () => {
     setFormData({
       title: event.title,
       description: event.description,
-      guestSpeakerId: event.guestSpeaker._id,
+      guestUserId: event.guestUser._id,
       date: new Date(event.date).toISOString().split('T')[0],
       startTime: event.startTime,
       endTime: event.endTime,
@@ -120,8 +135,10 @@ const EventManagement = () => {
       await axios.delete(`/api/events/${id}`, config);
       setSuccess('Event deleted successfully!');
       fetchEvents();
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || 'Delete failed');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -131,7 +148,7 @@ const EventManagement = () => {
     setFormData({
       title: '',
       description: '',
-      guestSpeakerId: '',
+      guestUserId: '',
       date: '',
       startTime: '',
       endTime: '',
@@ -176,6 +193,13 @@ const EventManagement = () => {
             <h2 className="text-2xl font-bold mb-4">
               {editingEvent ? 'Edit Event' : 'Create New Event'}
             </h2>
+            {guestUsers.length === 0 && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
+                <p className="text-yellow-700">
+                  <strong>Note:</strong> No guest speakers have registered yet. Guests must register with a guest account before you can create events.
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -209,19 +233,22 @@ const EventManagement = () => {
                     Guest Speaker *
                   </label>
                   <select
-                    name="guestSpeakerId"
-                    value={formData.guestSpeakerId}
+                    name="guestUserId"
+                    value={formData.guestUserId}
                     onChange={handleChange}
                     className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none"
                     required
                   >
-                    <option value="">Select a speaker</option>
-                    {speakers.map((speaker) => (
-                      <option key={speaker._id} value={speaker._id}>
-                        {speaker.name} - {speaker.expertise.join(', ')}
+                    <option value="">Select a guest speaker</option>
+                    {guestUsers.map((guest) => (
+                      <option key={guest._id} value={guest._id}>
+                        {guest.username} ({guest.email})
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    An invitation will be automatically sent to the selected guest
+                  </p>
                 </div>
                 <div>
                   <label className="block text-gray-700 text-sm font-medium mb-1">
@@ -330,9 +357,14 @@ const EventManagement = () => {
               <div className="flex gap-4 mt-6">
                 <button
                   type="submit"
-                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+                  disabled={guestUsers.length === 0}
+                  className={`px-6 py-2 rounded-lg ${
+                    guestUsers.length === 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
                 >
-                  {editingEvent ? 'Update Event' : 'Create Event'}
+                  {editingEvent ? 'Update Event & Send Invitation' : 'Create Event & Send Invitation'}
                 </button>
                 <button
                   type="button"
@@ -362,19 +394,48 @@ const EventManagement = () => {
                         <h3 className="text-2xl font-bold text-gray-800">{event.title}</h3>
                         <p className="text-sm text-gray-500 mt-1">{event.category}</p>
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          event.status === 'upcoming'
-                            ? 'bg-blue-100 text-blue-800'
-                            : event.status === 'ongoing'
-                            ? 'bg-green-100 text-green-800'
-                            : event.status === 'completed'
-                            ? 'bg-gray-100 text-gray-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {event.status}
-                      </span>
+                      <div className="flex flex-col items-end space-y-2">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            event.status === 'upcoming'
+                              ? 'bg-blue-100 text-blue-800'
+                              : event.status === 'ongoing'
+                              ? 'bg-green-100 text-green-800'
+                              : event.status === 'completed'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {event.status}
+                        </span>
+                        
+                        {/* Visibility Badge */}
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center ${
+                            event.isVisibleToStudents
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {event.isVisibleToStudents ? (
+                            <>
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                              </svg>
+                              Visible to Students
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.452.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+                                <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
+                              </svg>
+                              Hidden from Students
+                            </>
+                          )}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -382,7 +443,10 @@ const EventManagement = () => {
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
                     <p className="text-gray-600 mb-2">
-                      <span className="font-medium">Guest Speaker:</span> {event.guestSpeaker?.name}
+                      <span className="font-medium">Guest Speaker:</span> {event.guestUser?.username}
+                    </p>
+                    <p className="text-gray-600 mb-2">
+                      <span className="font-medium">Email:</span> {event.guestUser?.email}
                     </p>
                     <p className="text-gray-600 mb-2">
                       <span className="font-medium">Date:</span>{' '}
@@ -408,31 +472,73 @@ const EventManagement = () => {
                         {event.currentAttendees}/{event.maxAttendees}
                       </span>
                     </p>
-                    <div className="mt-2">
-                      <span className="font-medium text-gray-600">Expertise:</span>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {event.guestSpeaker?.expertise?.map((exp, index) => (
-                          <span
-                            key={index}
-                            className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"
-                          >
-                            {exp}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 </div>
 
                 <p className="text-gray-600 mb-4">{event.description}</p>
 
-                <div className="flex gap-2">
+                {/* Invitation Status Display */}
+                <div className={`mb-4 p-3 rounded-lg border-l-4 ${
+                  event.invitationStatus === 'accepted' 
+                    ? 'bg-green-50 border-green-500'
+                    : event.invitationStatus === 'declined'
+                    ? 'bg-red-50 border-red-500'
+                    : 'bg-yellow-50 border-yellow-500'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        Invitation Status: {' '}
+                        <span className={
+                          event.invitationStatus === 'accepted' 
+                            ? 'text-green-700'
+                            : event.invitationStatus === 'declined'
+                            ? 'text-red-700'
+                            : 'text-yellow-700'
+                        }>
+                          {event.invitationStatus.charAt(0).toUpperCase() + event.invitationStatus.slice(1)}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Guest: {event.guestUser?.username} ({event.guestUser?.email})
+                      </p>
+                      {event.invitationSentAt && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Sent: {new Date(event.invitationSentAt).toLocaleString()}
+                        </p>
+                      )}
+                      {event.invitationRespondedAt && (
+                        <p className="text-xs text-gray-500">
+                          Responded: {new Date(event.invitationRespondedAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                    {event.invitationStatus === 'accepted' && (
+                      <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                    {event.invitationStatus === 'declined' && (
+                      <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                    {event.invitationStatus === 'pending' && (
+                      <svg className="w-8 h-8 text-yellow-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => handleEdit(event)}
                     className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                   >
                     Edit
                   </button>
+                  
                   <button
                     onClick={() => handleDelete(event._id)}
                     className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"

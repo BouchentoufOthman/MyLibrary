@@ -19,8 +19,8 @@ router.post('/register', async (req, res) => {
         }
 
         // Validate role if provided
-        if (role && !['student', 'admin'].includes(role)) {
-            return res.status(400).json({ message: 'Invalid role. Must be student or admin' });
+        if (role && !['student', 'admin', 'guest'].includes(role)) {
+            return res.status(400).json({ message: 'Invalid role. Must be student, admin, or guest' });
         }
 
         console.log('Checking if user exists...');
@@ -93,6 +93,17 @@ router.post('/login', async (req, res) => {
 // Get current user route
 router.get('/me', protect, async (req, res) => {
     res.status(200).json(req.user);
+});
+
+// Get all guest users (Admin only)
+router.get('/guests', protect, async (req, res) => {
+    try {
+        const guests = await User.find({ role: 'guest' }).select('-password');
+        res.json(guests);
+    } catch (error) {
+        console.error('Error fetching guest users:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
 });
 
 // Generate JWT token

@@ -833,8 +833,8 @@ const StudentDashboard = ({ user }) => {
                             />
                           )}
                           <div>
-                            <p className="font-medium text-gray-800">{event.guestSpeaker?.name}</p>
-                            <p className="text-sm text-gray-500">{event.guestSpeaker?.organization}</p>
+                            <p className="font-medium text-gray-800">{event.guestUser?.username}</p>
+                            <p className="text-sm text-gray-500">{event.guestUser?.email}</p>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">

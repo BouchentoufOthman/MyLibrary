@@ -67,6 +67,7 @@ const AdminDashboard = ({ user }) => {
 
       // Get unique students from reservations
       const uniqueStudents = new Set(reservations.map(r => r.user?._id).filter(Boolean));
+      const guestsRes = await axios.get('/api/users/guests', config);
 
       setStats({
         totalBooks,
@@ -78,7 +79,7 @@ const AdminDashboard = ({ user }) => {
         activeRoomReservations,
         upcomingEvents,
         totalStudents: uniqueStudents.size,
-        totalGuestSpeakers: speakersRes.data.length,
+        totalGuestSpeakers: guestsRes.data.length,
       });
 
       // Get recent activity (last 5 reservations)

@@ -25,6 +25,7 @@ app.use("/api/reservations", reservationRoutes);
 app.use("/api/studyroom-reservations", studyRoomReservationRoutes); 
 app.use("/api/guest-speakers", guestSpeakerRoutes);
 app.use("/api/events", eventRoutes);
+app.use("/api/users", authRoutes);
 
 connectDB();
 
