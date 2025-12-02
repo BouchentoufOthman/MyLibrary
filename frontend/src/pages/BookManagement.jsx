@@ -18,7 +18,14 @@ const BookManagement = () => {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   
+    const filteredBooks = books.filter(book =>
+      book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      book.author.toLowerCase().includes(searchTerm.toLowerCase())||
+      book.genre.toLowerCase().includes(searchTerm.toLowerCase())||
+      book.isbn.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Fetch shelves when component mounts
   useEffect(() => {
@@ -142,6 +149,7 @@ const BookManagement = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
+      <div className="p-6 border-b border-gray-200">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-800">Book Management</h1>
@@ -151,6 +159,14 @@ const BookManagement = () => {
           >
             {showForm ? 'Cancel' : 'Add New Book'}
           </button>
+        </div>
+        <input
+          type="text"
+          placeholder="Search books by title, author, genre, or ISBN ..."
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
         </div>
 
         {error && (
@@ -338,7 +354,7 @@ const BookManagement = () => {
                   </td>
                 </tr>
               ) : (
-                books.map((book) => (
+                filteredBooks.map((book) => (
                   <tr key={book._id}>
                     <td className="px-6 py-4 whitespace-nowrap">{book.title}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{book.author}</td>
