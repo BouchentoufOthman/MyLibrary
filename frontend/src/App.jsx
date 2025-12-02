@@ -80,7 +80,7 @@ function App() {
         <Navigate to="/student/dashboard" replace />
       )
     ) : (
-      <Home user={user} />
+      <Navigate to="/login" replace/>
     )
   } 
 />
