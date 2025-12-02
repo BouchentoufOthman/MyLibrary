@@ -244,34 +244,46 @@ const BookManagement = () => {
                   <label className="block text-gray-700 text-sm font-medium mb-1">
                     Genre *
                   </label>
-                  <input
-                    type="text"
+                  <select
                     name="genre"
                     value={formData.genre}
                     onChange={handleChange}
                     className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none"
                     required
-                  />
+                  >
+                    <option value="">Select a genre</option>
+                    <option value="Fiction">Fiction</option>
+                    <option value="Non-Fiction">Non-Fiction</option>
+                    <option value="Science Fiction">Science Fiction</option>
+                    <option value="Fantasy">Fantasy</option>
+                    <option value="Mystery">Mystery</option>
+                    <option value="Thriller">Thriller</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Biography">Biography</option>
+                    <option value="History">History</option>
+                    <option value="Self-Help">Self-Help</option>
+                    <option value="Other">Other</option>
+                  </select>
                 </div>
                 <div>
-  <label className="block text-gray-700 text-sm font-medium mb-1">
-    Shelf *
-  </label>
-  <select
-    name="shelf"
-    value={formData.shelf}
-    onChange={handleChange}
-    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none"
-    required
-  >
-    <option value="">Select a shelf</option>
-    {shelves.map((shelf) => (
-      <option key={shelf._id} value={shelf._id}>
-        {shelf.shelfNumber} - {shelf.section} ({shelf.location})
-      </option>
-    ))}
-  </select>
-</div>
+                  <label className="block text-gray-700 text-sm font-medium mb-1">
+                  Shelf *
+                  </label>
+                  <select
+                    name="shelf"
+                    value={formData.shelf}
+                    onChange={handleChange}
+                    className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-200 outline-none"
+                    required
+                  >
+                  <option value="">Select a shelf</option>
+                  {shelves.map((shelf) => (
+                    <option key={shelf._id} value={shelf._id}>
+                      {shelf.shelfNumber} - {shelf.section} ({shelf.location})
+                    </option>
+                  ))}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-gray-700 text-sm font-medium mb-1">
                     Number of Copies *
