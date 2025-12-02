@@ -255,6 +255,7 @@ const BookManagement = () => {
                     <option value="Fiction">Fiction</option>
                     <option value="Non-Fiction">Non-Fiction</option>
                     <option value="Science Fiction">Science Fiction</option>
+                    <option value="Distopian">Distopian</option>
                     <option value="Fantasy">Fantasy</option>
                     <option value="Mystery">Mystery</option>
                     <option value="Thriller">Thriller</option>
@@ -262,6 +263,8 @@ const BookManagement = () => {
                     <option value="Biography">Biography</option>
                     <option value="History">History</option>
                     <option value="Self-Help">Self-Help</option>
+                    <option value="Drama">Drama</option>
+                    <option value="Short Stories">Short Stories</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
